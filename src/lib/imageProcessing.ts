@@ -1,43 +1,44 @@
-const TARGET_SIZE = 600;
+const TARGET_WIDTH = 600;
+const TARGET_HEIGHT = 750; // 护照照片标准比例 35mm x 45mm
 
 /**
- * 处理护照照片：居中裁剪为正方形，调整到目标尺寸
- * 这是基础版本，不做 AI 抠图（美国护照要求原始照片）
+ * 处理护照照片：按护照比例缩放，居中放置，背景色填充
+ * 保持原图完整，不裁剪，让用户看到背景色变化
  */
 export function processPassportPhoto(
   img: HTMLImageElement,
   bgColor: 'white' | 'blue' = 'white'
 ): string {
-  // 步骤1：居中裁剪为正方形
-  const size = Math.min(img.naturalWidth, img.naturalHeight);
-  const offsetX = (img.naturalWidth - size) / 2;
-  const offsetY = (img.naturalHeight - size) / 2;
-
-  const cropCanvas = document.createElement('canvas');
-  cropCanvas.width = size;
-  cropCanvas.height = size;
-  const cropCtx = cropCanvas.getContext('2d')!;
-  cropCtx.drawImage(img, offsetX, offsetY, size, size, 0, 0, size, size);
-
-  // 步骤2：调整到护照尺寸，填充背景色
-  const passportCanvas = document.createElement('canvas');
-  passportCanvas.width = TARGET_SIZE;
-  passportCanvas.height = TARGET_SIZE;
-  const ctx = passportCanvas.getContext('2d')!;
+  const canvas = document.createElement('canvas');
+  canvas.width = TARGET_WIDTH;
+  canvas.height = TARGET_HEIGHT;
+  const ctx = canvas.getContext('2d')!;
 
   // 填充背景色
   ctx.fillStyle = bgColor === 'blue' ? '#438EDB' : '#FFFFFF';
-  ctx.fillRect(0, 0, TARGET_SIZE, TARGET_SIZE);
+  ctx.fillRect(0, 0, TARGET_WIDTH, TARGET_HEIGHT);
 
-  // 绘制图片，保持宽高比居中
-  const ratio = Math.min(TARGET_SIZE / size, TARGET_SIZE / size);
-  const w = size * ratio;
-  const h = size * ratio;
-  const x = (TARGET_SIZE - w) / 2;
-  const y = (TARGET_SIZE - h) / 2;
-  ctx.drawImage(cropCanvas, x, y, w, h);
+  // 计算缩放比例，保持宽高比，让图片填满画布（可能有部分裁剪）
+  const imgRatio = img.naturalWidth / img.naturalHeight;
+  const canvasRatio = TARGET_WIDTH / TARGET_HEIGHT;
 
-  return passportCanvas.toDataURL('image/png');
+  let drawW: number, drawH: number;
+  if (imgRatio > canvasRatio) {
+    // 图片更宽，以高度为基准
+    drawH = TARGET_HEIGHT;
+    drawW = drawH * imgRatio;
+  } else {
+    // 图片更高，以宽度为基准
+    drawW = TARGET_WIDTH;
+    drawH = drawW / imgRatio;
+  }
+
+  const x = (TARGET_WIDTH - drawW) / 2;
+  const y = (TARGET_HEIGHT - drawH) / 2;
+
+  ctx.drawImage(img, x, y, drawW, drawH);
+
+  return canvas.toDataURL('image/png');
 }
 
 /**
@@ -47,26 +48,26 @@ export function processPassportPhoto(
 export function addWatermark(dataUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
-    canvas.width = TARGET_SIZE;
-    canvas.height = TARGET_SIZE;
+    canvas.width = TARGET_WIDTH;
+    canvas.height = TARGET_HEIGHT;
     const ctx = canvas.getContext('2d')!;
 
     const img = new Image();
     img.onload = () => {
       // 绘制底图
-      ctx.drawImage(img, 0, 0, TARGET_SIZE, TARGET_SIZE);
+      ctx.drawImage(img, 0, 0, TARGET_WIDTH, TARGET_HEIGHT);
 
       // 水印背景条
       ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-      ctx.fillRect(0, TARGET_SIZE - 72, TARGET_SIZE, 72);
+      ctx.fillRect(0, TARGET_HEIGHT - 72, TARGET_WIDTH, 72);
 
       // 水印文字
       ctx.fillStyle = '#FFFFFF';
       ctx.font = 'bold 15px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Passport Photo Tool', TARGET_SIZE / 2, TARGET_SIZE - 44);
+      ctx.fillText('Passport Photo Tool', TARGET_WIDTH / 2, TARGET_HEIGHT - 44);
       ctx.font = '12px Inter, sans-serif';
-      ctx.fillText('Free Version — Upgrade to Remove', TARGET_SIZE / 2, TARGET_SIZE - 24);
+      ctx.fillText('Free Version — Upgrade to Remove', TARGET_WIDTH / 2, TARGET_HEIGHT - 24);
 
       resolve(canvas.toDataURL('image/png'));
     };

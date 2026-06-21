@@ -1,9 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-
-const TARGET_SIZE = 600;
-
 interface PreviewProps {
   originalDataUrl: string;
   processedDataUrl: string;
@@ -37,12 +33,12 @@ export default function Preview({
         <div className="flex items-center gap-4 justify-center mb-6">
           <div className="text-center">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Original</p>
-            <img className="w-40 h-40 object-cover rounded-xl border border-gray-200" src={originalDataUrl} alt="Original photo" />
+            <img className="w-32 h-40 object-cover rounded-xl border border-gray-200" src={originalDataUrl} alt="Original photo" />
           </div>
           <span className="text-gray-400 text-2xl flex-shrink-0">&rarr;</span>
           <div className="text-center">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Passport Photo</p>
-            <img className="w-40 h-40 object-cover rounded-xl border-2 border-emerald-600 shadow-[0_0_0_4px_rgba(236,253,245,1)]" src={processedDataUrl} alt="Passport photo" />
+            <img className="w-32 h-40 object-cover rounded-xl border-2 border-emerald-600 shadow-[0_0_0_4px_rgba(236,253,245,1)]" src={processedDataUrl} alt="Passport photo" />
           </div>
         </div>
 

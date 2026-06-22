@@ -14,11 +14,11 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Passport Photo Tool — Crop & Print Helper",
-  description: "Passport and visa photo crop, resize, and print helper. Get the right size and format for your application. No drugstore trips needed.",
+  title: "US Passport Photo Tool — Crop & Print Helper",
+  description: "Create US passport photos that meet State Department requirements. AI-powered cropping, 2x2 inch format, proper head size and position. No drugstore trips needed.",
   openGraph: {
-    title: "Passport Photo Tool",
-    description: "Passport and visa photo crop, resize, and print helper.",
+    title: "US Passport Photo Tool",
+    description: "Create US passport photos that meet State Department requirements.",
     type: "website",
   },
 };

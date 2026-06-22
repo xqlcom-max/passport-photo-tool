@@ -1,26 +1,26 @@
 export default function Features() {
   const features = [
     {
+      icon: '🇺🇸',
+      color: 'bg-blue-50',
+      name: 'US Passport Compliant',
+      desc: 'Meets all US State Department requirements: 2x2 inches, proper head size, eye position, and white background.',
+    },
+    {
       icon: '⚡',
       color: 'bg-emerald-50',
       name: 'Smart Crop & Resize',
-      desc: 'Automatically crops and resizes your photo to meet passport and visa size requirements.',
+      desc: 'AI-powered face detection automatically crops and positions your head correctly.',
     },
     {
       icon: '⏱️',
-      color: 'bg-blue-50',
+      color: 'bg-amber-50',
       name: 'Instant Results',
       desc: 'No waiting, no appointments. Upload and download in seconds.',
     },
     {
-      icon: '🔒',
-      color: 'bg-purple-50',
-      name: 'Secure & Private',
-      desc: 'Your photos are processed securely with temporary storage (24 hours max). We never store them long-term.',
-    },
-    {
       icon: '💰',
-      color: 'bg-amber-50',
+      color: 'bg-green-50',
       name: 'Save Money',
       desc: 'Drugstore photos cost $15+. Here, the basic version is free.',
     },

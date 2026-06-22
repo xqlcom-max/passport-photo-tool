@@ -5,17 +5,15 @@ export default function Hero({ onGetStarted }: { onGetStarted: () => void }) {
     <section className="pt-20 pb-14 text-center">
       <div className="max-w-[640px] mx-auto px-6">
         <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-[13px] font-semibold mb-6">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-          Passport & visa photo helper
+          <span className="text-base">🇺🇸</span>
+          US Passport Photo Tool
         </div>
         <h1 className="font-extrabold text-[clamp(32px,6vw,48px)] leading-[1.1] tracking-[-1.5px] mb-4">
-          Your passport photo,<br/>
+          Your US passport photo,<br/>
           <span className="text-emerald-600">done right.</span>
         </h1>
         <p className="text-lg text-gray-500 max-w-[420px] mx-auto mb-8 leading-relaxed">
-          Upload a photo. We help you crop, resize, and format it for passport and visa applications. No drugstore trips needed.
+          Upload a photo. We crop, resize, and format it to meet US State Department passport requirements. No drugstore trips needed.
         </p>
         <button
           onClick={onGetStarted}

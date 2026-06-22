@@ -3,6 +3,7 @@
 interface PreviewProps {
   originalDataUrl: string;
   processedDataUrl: string;
+  watermarkedDataUrl: string;
   onBgChange: (bg: 'white' | 'blue') => void;
   currentBg: 'white' | 'blue';
   onFreeDownload: () => void;
@@ -12,6 +13,7 @@ interface PreviewProps {
 export default function Preview({
   originalDataUrl,
   processedDataUrl,
+  watermarkedDataUrl,
   onBgChange,
   currentBg,
   onFreeDownload,
@@ -21,12 +23,12 @@ export default function Preview({
     <section className="pb-12 animate-[fadeInUp_0.5s_ease]">
       <div className="max-w-[640px] mx-auto px-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="font-bold text-xl">Your Passport Photo</h2>
+          <h2 className="font-bold text-xl">Your US Passport Photo</h2>
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 text-white rounded-full text-[13px] font-semibold animate-[badgePop_0.4s_cubic-bezier(0.34,1.56,0.64,1)]">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
-            Correct Size &amp; Format
+            US Standard 2x2"
           </div>
         </div>
 
@@ -37,37 +39,42 @@ export default function Preview({
           </div>
           <span className="text-gray-400 text-2xl flex-shrink-0">&rarr;</span>
           <div className="text-center">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Passport Photo</p>
-            <img className="w-32 h-40 object-cover rounded-xl border-2 border-emerald-600 shadow-[0_0_0_4px_rgba(236,253,245,1)]" src={processedDataUrl} alt="Passport photo" />
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">🇺🇸 US Passport</p>
+            <img className="w-32 h-40 object-cover rounded-xl border-2 border-emerald-600 shadow-[0_0_0_4px_rgba(236,253,245,1)]" src={watermarkedDataUrl || processedDataUrl} alt="US Passport photo" />
           </div>
         </div>
 
-        <div className="flex items-center gap-3 justify-center mb-6">
-          <span className="text-[13px] font-medium text-gray-500">Background:</span>
-          <button
-            className={`w-9 h-9 rounded-full border-2 cursor-pointer transition-all relative ${
-              currentBg === 'white'
-                ? 'border-emerald-600 shadow-[0_0_0_3px_rgba(236,253,245,1)]'
-                : 'border-gray-200 hover:border-gray-400'
-            }`}
-            style={{ background: '#FFFFFF' }}
-            title="White background"
-            onClick={() => onBgChange('white')}
-          >
-            {currentBg === 'white' && <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-emerald-600">✓</span>}
-          </button>
-          <button
-            className={`w-9 h-9 rounded-full border-2 cursor-pointer transition-all relative ${
-              currentBg === 'blue'
-                ? 'border-emerald-600 shadow-[0_0_0_3px_rgba(236,253,245,1)]'
-                : 'border-gray-200 hover:border-gray-400'
-            }`}
-            style={{ background: '#438EDB' }}
-            title="Blue background"
-            onClick={() => onBgChange('blue')}
-          >
-            {currentBg === 'blue' && <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">✓</span>}
-          </button>
+        <div className="flex flex-col items-center gap-1.5 mb-6">
+          <div className="flex items-center gap-3 justify-center">
+            <span className="text-[13px] font-medium text-gray-500">Background:</span>
+            <button
+              className={`w-9 h-9 rounded-full border-2 cursor-pointer transition-all relative ${
+                currentBg === 'white'
+                  ? 'border-emerald-600 shadow-[0_0_0_3px_rgba(236,253,245,1)]'
+                  : 'border-gray-200 hover:border-gray-400'
+              }`}
+              style={{ background: '#FFFFFF' }}
+              title="White background — US Passport required"
+              onClick={() => onBgChange('white')}
+            >
+              {currentBg === 'white' && <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-emerald-600">✓</span>}
+            </button>
+            <button
+              className={`w-9 h-9 rounded-full border-2 cursor-pointer transition-all relative ${
+                currentBg === 'blue'
+                  ? 'border-emerald-600 shadow-[0_0_0_3px_rgba(236,253,245,1)]'
+                  : 'border-gray-200 hover:border-gray-400'
+              }`}
+              style={{ background: '#438EDB' }}
+              title="Blue background — Not for US Passport"
+              onClick={() => onBgChange('blue')}
+            >
+              {currentBg === 'blue' && <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">✓</span>}
+            </button>
+          </div>
+          {currentBg === 'blue' && (
+            <p className="text-[11px] text-amber-600 font-medium">⚠️ Blue background does not meet US passport requirements. US passport requires plain white background.</p>
+          )}
         </div>
 
         <div className="flex flex-col gap-2.5">

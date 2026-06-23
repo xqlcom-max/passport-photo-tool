@@ -77,7 +77,7 @@ export default function PaymentModal({ isOpen, onClose, onCheckout, isLoading }:
             'Pay Now — $2.99'
           )}
         </button>
-        <p className="text-center text-xs text-gray-400 mt-3">Secure payment via Lemon Squeezy</p>
+        <p className="text-center text-xs text-gray-400 mt-3">Secure payment via Gumroad</p>
       </div>
     </div>
   );

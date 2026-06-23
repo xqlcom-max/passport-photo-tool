@@ -20,7 +20,7 @@ export const JOB_PREFIX = 'job:';
 export interface JobData {
   status: 'pending' | 'paid';
   filename: string;
-  blobUrl?: string;
+  imageData?: string; // base64 编码的高清图片数据
   createdAt: number;
   paidAt?: number;
   orderId?: string;

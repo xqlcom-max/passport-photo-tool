@@ -37,6 +37,67 @@ export default function Home() {
   const [faceDetection, setFaceDetection] = useState<FaceDetectionResult | null>(null);
   const [faceMetrics, setFaceMetrics] = useState<FaceMetrics | null>(null);
 
+  // 检查是否刚从 Gumroad 返回（URL 中有 job_id 参数）
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnedJobId = urlParams.get('job_id');
+    if (returnedJobId) {
+      setCurrentJobId(returnedJobId);
+      setAppState('preview');
+      // 清理 URL 参数
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // 自动轮询支付状态（当有 pending 的 jobId 时）
+  useEffect(() => {
+    if (!currentJobId || appState !== 'preview') return;
+
+    let retryCount = 0;
+    const maxRetries = 12; // 最多轮询 12 次（约 1 分钟）
+
+    const checkPayment = async () => {
+      try {
+        const response = await fetch(`/api/status/${currentJobId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === 'paid') {
+            // 支付成功，自动下载
+            if (data.imageData) {
+              const byteCharacters = atob(data.imageData.split(',')[1] || data.imageData);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              const blob = new Blob([byteArray], { type: 'image/png' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = data.filename || 'passport-photo-hd.png';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }
+            return; // 停止轮询
+          }
+        }
+      } catch (error) {
+        console.error('Payment status check failed:', error);
+      }
+
+      retryCount++;
+      if (retryCount < maxRetries) {
+        setTimeout(checkPayment, 5000); // 每 5 秒检查一次
+      }
+    };
+
+    // 开始轮询
+    const timer = setTimeout(checkPayment, 2000); // 首次延迟 2 秒
+    return () => clearTimeout(timer);
+  }, [currentJobId, appState]);
+
   // 页面加载时初始化 MediaPipe 模型
   useEffect(() => {
     const loadModel = async () => {
@@ -214,23 +275,35 @@ export default function Home() {
 
     // 调用后端验证支付状态
     try {
-      const response = await fetch(`/api/download/${currentJobId}`);
+      const response = await fetch(`/api/status/${currentJobId}`);
       if (response.ok) {
-        // 已支付，直接下载
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'passport-photo-hd.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } else if (response.status === 403) {
+        const data = await response.json();
+        if (data.status === 'paid' && data.imageData) {
+          // 已支付，从返回的 base64 数据下载图片
+          const byteCharacters = atob(data.imageData.split(',')[1] || data.imageData);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: 'image/png' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = data.filename || 'passport-photo-hd.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } else if (data.status === 'pending') {
+          // 未支付，打开支付弹窗
+          setIsModalOpen(true);
+        } else {
+          alert('Download failed. Please try again.');
+        }
+      } else {
         // 未支付，打开支付弹窗
         setIsModalOpen(true);
-      } else {
-        alert('Download failed. Please try again.');
       }
     } catch (error) {
       console.error('Download check failed:', error);
@@ -244,8 +317,8 @@ export default function Home() {
 
     setIsCheckingOut(true);
     try {
-      // 第一步：上传图片到后端
-      const uploadResponse = await fetch('/api/upload', {
+      // 第一步：保存图片数据到 Redis
+      const jobResponse = await fetch('/api/job', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -256,12 +329,12 @@ export default function Home() {
         }),
       });
 
-      if (!uploadResponse.ok) {
-        const uploadError = await uploadResponse.json();
-        throw new Error(uploadError.error || 'Failed to upload image');
+      if (!jobResponse.ok) {
+        const jobError = await jobResponse.json();
+        throw new Error(jobError.error || 'Failed to save job');
       }
 
-      // 第二步：创建 checkout session
+      // 第二步：获取 Gumroad 支付链接
       const checkoutResponse = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
@@ -269,14 +342,13 @@ export default function Home() {
         },
         body: JSON.stringify({
           jobId: currentJobId,
-          filename: 'passport-photo-hd.png',
         }),
       });
 
       const data = await checkoutResponse.json();
 
       if (checkoutResponse.ok && data.checkoutUrl) {
-        // 跳转到 Lemon Squeezy 支付页面
+        // 跳转到 Gumroad 支付页面
         window.location.href = data.checkoutUrl;
       } else {
         throw new Error(data.error || 'Failed to create checkout session');

@@ -53,8 +53,9 @@ export async function POST(request: NextRequest) {
 
     const updatedJob: JobData = {
       ...existingJob,
-      blobUrl: blob.url,
-    };
+      // 注意：旧流程使用 blobUrl，新流程使用 imageData
+      // 保留此字段以兼容旧数据
+    } as JobData & { blobUrl?: string };
 
     await redis.set(`${JOB_PREFIX}${jobId}`, updatedJob, { ex: 86400 });
 

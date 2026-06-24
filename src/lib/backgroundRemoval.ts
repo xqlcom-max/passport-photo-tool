@@ -8,8 +8,6 @@
  * 使用动态导入减小初始包体积
  */
 
-import type { RemoveBackgroundOptions } from '@imgly/background-removal';
-
 /**
  * 移除图片背景
  * @param imageData 图片的 base64 数据或 URL

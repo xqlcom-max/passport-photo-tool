@@ -8,8 +8,10 @@ import Processing from '@/components/Processing';
 import Preview from '@/components/Preview';
 import PaymentModal from '@/components/PaymentModal';
 import Features from '@/components/Features';
+import BeforeAfter from '@/components/BeforeAfter';
+import TrustSection from '@/components/TrustSection';
 import Footer from '@/components/Footer';
-import { processPassportPhoto, addWatermark, downloadImage, loadImage } from '@/lib/imageProcessing';
+import { processPassportPhoto, addWatermark, downloadImage, loadImage, getPassportExportMeta } from '@/lib/imageProcessing';
 import { removeImageBackground } from '@/lib/backgroundRemoval';
 import { initFaceLandmarker, detectFace } from '@/lib/face/mediapipeFaceDetector';
 import { calculateFaceMetrics } from '@/lib/face/faceMetrics';
@@ -62,23 +64,9 @@ export default function Home() {
         if (response.ok) {
           const data = await response.json();
           if (data.status === 'paid') {
-            // 支付成功，自动下载
+            // 支付成功，自动下载（通过 downloadImage 注入 300 DPI）
             if (data.imageData) {
-              const byteCharacters = atob(data.imageData.split(',')[1] || data.imageData);
-              const byteNumbers = new Array(byteCharacters.length);
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-              }
-              const byteArray = new Uint8Array(byteNumbers);
-              const blob = new Blob([byteArray], { type: 'image/png' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = data.filename || 'passport-photo-hd.png';
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
+              await downloadImage(data.imageData, data.filename || 'passport-photo-hd.png');
             }
             return; // 停止轮询
           }
@@ -279,22 +267,8 @@ export default function Home() {
       if (response.ok) {
         const data = await response.json();
         if (data.status === 'paid' && data.imageData) {
-          // 已支付，从返回的 base64 数据下载图片
-          const byteCharacters = atob(data.imageData.split(',')[1] || data.imageData);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], { type: 'image/png' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = data.filename || 'passport-photo-hd.png';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          // 已支付，通过 downloadImage 注入 300 DPI 后下载
+          await downloadImage(data.imageData, data.filename || 'passport-photo-hd.png');
         } else if (data.status === 'pending') {
           // 未支付，打开支付弹窗
           setIsModalOpen(true);
@@ -371,6 +345,8 @@ export default function Home() {
       <main className="flex-1">
         <Hero onGetStarted={handleGetStarted} />
 
+        <BeforeAfter />
+
         <UploadZone onFileSelect={handleFileSelect} />
 
         {appState === 'processing' && <Processing />}
@@ -390,6 +366,8 @@ export default function Home() {
         )}
 
         <Features />
+
+        <TrustSection />
       </main>
       <Footer />
 

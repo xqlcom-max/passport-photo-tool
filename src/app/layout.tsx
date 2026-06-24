@@ -14,12 +14,22 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "US Passport Photo Tool — Crop & Print Helper",
-  description: "Create US passport photos that meet State Department requirements. AI-powered cropping, 2x2 inch format, proper head size and position. No drugstore trips needed.",
+  title: "US Passport Photo Maker — 2x2 AI Tool | Free Preview",
+  description: "Create US passport photos online with AI. Auto-crop to 2x2 inches, white background, correct head size. Free preview, instant download. Meets State Department requirements.",
+  keywords: ["passport photo", "US passport photo", "passport photo maker", "2x2 passport photo", "AI passport photo", "passport photo online", "passport photo tool"],
   openGraph: {
-    title: "US Passport Photo Tool",
-    description: "Create US passport photos that meet State Department requirements.",
+    title: "US Passport Photo Maker — Free AI Tool",
+    description: "Create compliant US passport photos online. AI-powered cropping, 2x2 inch format, white background. Free preview.",
     type: "website",
+    siteName: "Passport Photo Tool",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "US Passport Photo Maker — Free AI Tool",
+    description: "Create compliant US passport photos online. AI-powered cropping, 2x2 inch format.",
+  },
+  alternates: {
+    canonical: "https://passphototool.com",
   },
 };
 

@@ -88,6 +88,25 @@ export default function UploadZone({ onFileSelect }: UploadZoneProps) {
             </div>
           ) : (
             <>
+              {/* 上传前引导说明 */}
+              <div className="mb-6">
+                <p className="font-bold text-lg mb-3">Upload Your Photo</p>
+                <div className="flex flex-wrap justify-center gap-3 text-[13px] text-gray-500 mb-4">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-emerald-500">✓</span>
+                    <span>Clear front-facing photo</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-emerald-500">✓</span>
+                    <span>White background recommended</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-emerald-500">✓</span>
+                    <span>No sunglasses or hats</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="w-14 h-14 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center transition-all group-hover:bg-emerald-600">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-gray-400">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -95,8 +114,7 @@ export default function UploadZone({ onFileSelect }: UploadZoneProps) {
                   <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
               </div>
-              <p className="font-bold text-lg mb-1">Upload Your Photo</p>
-              <p className="text-sm text-gray-500">Drop your photo here or click to browse</p>
+              <p className="font-semibold text-[15px] mb-1">Drop your photo here or click to browse</p>
               <p className="text-xs text-gray-400 mt-3">Supports JPG, PNG — Max 10MB</p>
             </>
           )}

@@ -28,19 +28,55 @@ export default function Preview({
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
-            US Standard 2x2"
+            US Standard 2×2" (51×51mm)
           </div>
         </div>
 
         <div className="flex items-center gap-4 justify-center mb-6">
           <div className="text-center">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Original</p>
-            <img className="w-32 h-40 object-cover rounded-xl border border-gray-200" src={originalDataUrl} alt="Original photo" />
+            <img className="w-48 h-48 object-cover rounded-xl border border-gray-200" src={originalDataUrl} alt="Original photo" />
           </div>
           <span className="text-gray-400 text-2xl flex-shrink-0">&rarr;</span>
           <div className="text-center">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">🇺🇸 US Passport</p>
-            <img className="w-32 h-40 object-cover rounded-xl border-2 border-emerald-600 shadow-[0_0_0_4px_rgba(236,253,245,1)]" src={watermarkedDataUrl || processedDataUrl} alt="US Passport photo" />
+            {/* 带裁剪框 guide 的预览图 - 2x2 英寸（51mm × 51mm）正方形 */}
+            <div className="relative w-48 h-48 rounded-xl border-2 border-emerald-600 shadow-[0_0_0_4px_rgba(236,253,245,1)] overflow-hidden">
+              <img className="w-full h-full object-cover" src={watermarkedDataUrl || processedDataUrl} alt="US Passport photo" />
+              {/* 2x2 裁剪框 guide */}
+              <div className="absolute inset-0 pointer-events-none">
+                {/* 顶部 20% 安全区域（头顶空间） */}
+                <div className="absolute top-0 left-0 right-0 h-[15%] bg-gradient-to-b from-black/10 to-transparent" />
+                {/* 头部比例 guide（50-69%） */}
+                <div className="absolute top-[15%] left-0 right-0 h-[55%] border-t border-b border-dashed border-white/60" />
+                {/* 眼睛位置 guide（56-69%） */}
+                <div className="absolute top-[45%] left-0 right-0 h-[24%] border-t border-dashed border-emerald-300/80" />
+                {/* 比例标注 */}
+                <div className="absolute top-[20%] right-1 text-[8px] text-white/80 bg-black/30 px-1 rounded">Top</div>
+                <div className="absolute top-[48%] right-1 text-[8px] text-white/80 bg-black/30 px-1 rounded">Eyes</div>
+                <div className="absolute bottom-[10%] right-1 text-[8px] text-white/80 bg-black/30 px-1 rounded">Chin</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 合规检查提示 */}
+        <div className="flex items-center justify-center gap-4 mb-6 text-[12px] text-gray-500">
+          <div className="flex items-center gap-1.5">
+            <span className="text-emerald-500">✓</span>
+            <span>2×2 inch (51×51mm)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-emerald-500">✓</span>
+            <span>White background</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-emerald-500">✓</span>
+            <span>Head 50-69%</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-emerald-500">✓</span>
+            <span>300 DPI print ready</span>
           </div>
         </div>
 
@@ -87,7 +123,7 @@ export default function Preview({
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            Download Free (with watermark)
+            Download Free (2x2" 300 DPI)
           </button>
           <button
             className="flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-600 text-white border-none rounded-xl text-[15px] font-semibold w-full shadow-[0_2px_8px_rgba(5,150,105,0.25)] hover:bg-emerald-700 hover:shadow-[0_4px_16px_rgba(5,150,105,0.35)] hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer"
@@ -97,7 +133,7 @@ export default function Preview({
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
-            Remove Watermark — $2.99
+            Remove Watermark (HD 300 DPI) — $2.99
           </button>
         </div>
       </div>

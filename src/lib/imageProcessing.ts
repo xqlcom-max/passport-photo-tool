@@ -6,6 +6,47 @@ import { calculateFaceMetrics } from './face/faceMetrics';
 import type { FaceDetectionResult } from './face/types';
 
 /**
+ * 从图片 alpha 通道提取人的 bounding box
+ * 背景移除后的图片，非透明区域就是人的轮廓（包含头发、肩膀）
+ */
+function getPersonBoundingBox(img: HTMLImageElement): { x: number; y: number; width: number; height: number } | null {
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
+  let found = false;
+
+  // 扫描所有像素，找非透明区域的边界
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const alpha = data[(y * canvas.width + x) * 4 + 3];
+      if (alpha > 128) { // 不透明像素 = 人的部分
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        found = true;
+      }
+    }
+  }
+
+  if (!found) return null;
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
+}
+
+/**
  * 处理护照照片：智能裁剪，符合美国护照照片标准
  *
  * 美国护照照片要求：
@@ -49,32 +90,27 @@ export async function processPassportPhoto(
       const metrics = calculateFaceMetrics(faceDetection, img.naturalWidth, img.naturalHeight);
       console.log('Face metrics:', metrics);
 
-      // 获取智能裁剪区域
-      const cropArea = smartCropForPassport(img, faceDetection);
-      console.log('Crop area:', cropArea);
-
-      // 计算缩放比例，确保裁剪区域填满画布
-      const scaleX = TARGET_WIDTH / cropArea.width;
-      const scaleY = TARGET_HEIGHT / cropArea.height;
-      const scale = Math.max(scaleX, scaleY);
-
-      const drawWidth = cropArea.width * scale;
-      const drawHeight = cropArea.height * scale;
-      const drawX = (TARGET_WIDTH - drawWidth) / 2;
-      const drawY = (TARGET_HEIGHT - drawHeight) / 2;
+      // 获取证件照排版参数（transform 算法）
+      const passportTransform = buildPassportTransform(img, faceDetection);
+      console.log('Passport transform:', passportTransform);
 
       // 启用抗锯齿，优化边缘处理
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
-      // 绘制裁剪后的图片
-      ctx.drawImage(
-        img,
-        cropArea.x, cropArea.y, cropArea.width, cropArea.height,
-        drawX, drawY, drawWidth, drawHeight
+      // 应用 transform（全局重构，不是裁剪）
+      ctx.setTransform(
+        passportTransform.scale, 0,
+        0, passportTransform.scale,
+        passportTransform.offsetX,
+        passportTransform.offsetY
       );
+      ctx.drawImage(img, 0, 0);
 
-      console.log('✅ Smart crop completed');
+      // 重置 transform
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+      console.log('✅ Passport photo transform completed');
     } else {
       console.warn('⚠️ No face detected, using center crop...');
 
@@ -90,12 +126,13 @@ export async function processPassportPhoto(
 }
 
 /**
- * 基于 MediaPipe 关键点的智能裁剪
+ * 基于 MediaPipe 关键点的智能裁剪（fit-to-frame 算法）
  *
- * 美国护照照片要求：
+ * 美国护照照片要求（U.S. Department of State）：
  * - 头部高度：50%-69%（推荐 56%-64%）
- * - 眼睛位置：距底部 56%-69%（推荐 55%-64%）
- * - 头顶空间：10%-25%
+ * - 眼睛位置：距底部 56%-69%
+ * - 头顶空间：头顶到照片顶部至少留有空间（约 10%-25%）
+ * - 头顶不能被裁切
  * - 左右居中
  *
  * @param img - 原始图片
@@ -134,50 +171,170 @@ function smartCropForPassport(
   const foreheadTopY = regions.foreheadTop.y * imgH;
   const chinY = regions.chin.y * imgH;
 
-  // 头部高度
-  const headHeight = Math.abs(chinY - foreheadTopY);
+  // 估算真正的头顶位置
+  const eyeToForeheadDist = foreheadTopY - eyesCenterY;
+  const hairTopY = foreheadTopY - eyeToForeheadDist * 1.0;
 
-  // 目标头部高度比例（推荐 58%）
-  const targetHeadHeightRatio = 0.58;
+  // 构建人脸框（基于关键点）
+  const eyeDistance = rightEyeX - leftEyeX;
+  const faceBox = {
+    x: leftEyeX - eyeDistance * 0.8,
+    y: hairTopY,
+    width: eyeDistance * 2.6,
+    height: chinY - hairTopY,
+  };
 
-  // 计算裁剪区域大小
-  // 头部高度 = 裁剪高度 * targetHeadHeightRatio
-  const cropHeight = headHeight / targetHeadHeightRatio;
-  const cropWidth = cropHeight; // 正方形
+  // fit-to-frame 算法：基于图片尺寸决定裁剪框大小
+  // 1. face center
+  const faceCenterX = faceBox.x + faceBox.width / 2;
+  const faceCenterY = faceBox.y + faceBox.height / 2;
 
-  // 裁剪区域中心 Y：眼睛在裁剪区域的 35%-40% 处
-  // 目标：眼睛 Y = cropY + cropHeight * 0.38
-  const targetEyeYInCrop = cropHeight * 0.38;
-  const cropCenterY = eyesCenterY - targetEyeYInCrop + cropHeight / 2;
+  // 2. 先决定"最终裁剪框大小"（关键：不是基于face，而是基于图）
+  let cropSize = Math.min(imgW, imgH);
 
-  // 裁剪区域中心 X：以眼睛中心为准
-  const cropCenterX = eyesCenterX;
+  // 3. 强制扩大一点（保证头顶空间）
+  cropSize = cropSize * 0.85;
 
-  // 计算裁剪区域坐标
-  let cropX = cropCenterX - cropWidth / 2;
-  let cropY = cropCenterY - cropHeight / 2;
+  // 4. crop 左上角（以脸为中心往上偏移）
+  let x = faceCenterX - cropSize / 2;
+  let y = faceCenterY - cropSize * 0.42; // 关键：往上偏，保留头顶
 
-  // 边界检查：确保不超出图片范围
-  cropX = Math.max(0, Math.min(cropX, imgW - cropWidth));
-  cropY = Math.max(0, Math.min(cropY, imgH - cropHeight));
+  // 5. clamp
+  x = Math.max(0, Math.min(imgW - cropSize, x));
+  y = Math.max(0, Math.min(imgH - cropSize, y));
 
-  // 如果裁剪区域超出图片，调整大小
-  if (cropWidth > imgW || cropHeight > imgH) {
-    const size = Math.min(imgW, cropWidth, cropHeight);
+  return {
+    x,
+    y,
+    width: cropSize,
+    height: cropSize,
+  };
+}
+
+/**
+ * 证件照排版算法（稳定版结构）
+ *
+ * 核心思路：template-driven，不是 face-driven
+ * 1. detect face (only for anchor)
+ * 2. estimate person region (virtual)
+ * 3. fit to passport canvas (fixed template)
+ * 4. enforce constraints (top / eye line / ratio)
+ * 5. render
+ *
+ * @param img - 背景已移除的图片（有 alpha 通道）
+ * @param detection - MediaPipe 人脸检测结果
+ * @returns transform 参数（scale, offsetX, offsetY）
+ */
+function buildPassportTransform(
+  img: HTMLImageElement,
+  detection: FaceDetectionResult
+): { scale: number; offsetX: number; offsetY: number } {
+  const imgW = img.naturalWidth;
+  const imgH = img.naturalHeight;
+
+  // STEP 1: 获取人物 bounding box（从 alpha 通道）
+  const personBox = getPersonBoundingBox(img);
+
+  // STEP 2: 获取 anchor（face 只做定位，不做裁剪依据）
+  const anchor = getAnchor(detection, personBox, imgW, imgH);
+
+  // STEP 3: 计算稳定布局（核心）
+  const layout = computeStableLayout(anchor, personBox);
+
+  // STEP 4: 安全约束修正（防切头）
+  const safeLayout = applySafetyConstraints(layout, personBox);
+
+  return safeLayout;
+}
+
+/**
+ * 获取 anchor（face 只做定位，不做裁剪依据）
+ */
+function getAnchor(
+  detection: FaceDetectionResult,
+  personBox: { x: number; y: number; width: number; height: number } | null,
+  imgW: number,
+  imgH: number
+): { x: number; y: number; top: number } {
+  // 优先用 face detection 的关键点定位
+  if (detection.regions) {
+    const { regions } = detection;
     return {
-      x: (imgW - size) / 2,
-      y: (imgH - size) / 2,
-      width: size,
-      height: size,
+      x: ((regions.leftEye.x + regions.rightEye.x) / 2) * imgW,
+      y: ((regions.foreheadTop.y + regions.chin.y) / 2) * imgH,
+      top: regions.foreheadTop.y * imgH,
     };
   }
 
+  // fallback：用 person bounding box 的中心
+  if (personBox) {
+    return {
+      x: personBox.x + personBox.width / 2,
+      y: personBox.y + personBox.height / 2,
+      top: personBox.y,
+    };
+  }
+
+  // 最后 fallback：图片中心
   return {
-    x: cropX,
-    y: cropY,
-    width: cropWidth,
-    height: cropHeight,
+    x: imgW / 2,
+    y: imgH / 2,
+    top: 0,
   };
+}
+
+/**
+ * 计算稳定布局（核心算法）
+ *
+ * 策略：
+ * - Scale：contain-fit（让人完整填满画布）
+ * - 垂直定位：人中心在 50% 高度
+ * - 水平定位：居中
+ */
+function computeStableLayout(
+  anchor: { x: number; y: number; top: number },
+  personBox: { x: number; y: number; width: number; height: number } | null
+): { scale: number; offsetX: number; offsetY: number } {
+  // 计算 scale（contain-fit）
+  let scale: number;
+  if (personBox) {
+    // 有人物轮廓时，用 contain-fit 让人完整填满画布
+    scale = Math.min(
+      TARGET_WIDTH / personBox.width,
+      TARGET_HEIGHT / personBox.height
+    );
+  } else {
+    // 没有人物轮廓时，用固定比例
+    scale = 1.0;
+  }
+
+  // 计算偏移（anchor 做定位）
+  const offsetX = TARGET_WIDTH / 2 - anchor.x * scale;
+  const offsetY = TARGET_HEIGHT * 0.50 - anchor.y * scale;
+
+  return { scale, offsetX, offsetY };
+}
+
+/**
+ * 安全约束系统（防翻车核心）
+ *
+ * 确保头顶不会贴边（10% 安全区）
+ */
+function applySafetyConstraints(
+  layout: { scale: number; offsetX: number; offsetY: number },
+  personBox: { x: number; y: number; width: number; height: number } | null
+): { scale: number; offsetX: number; offsetY: number } {
+  const TOP_SAFE_ZONE = TARGET_HEIGHT * 0.10;
+
+  // 用 personBox.y 计算头顶位置
+  if (personBox) {
+    const headTop = personBox.y * layout.scale + layout.offsetY;
+    if (headTop < TOP_SAFE_ZONE) {
+      layout.offsetY += (TOP_SAFE_ZONE - headTop);
+    }
+  }
+
+  return layout;
 }
 
 /**
@@ -242,15 +399,112 @@ export function addWatermark(dataUrl: string): Promise<string> {
 }
 
 /**
- * 下载图片
+ * 护照照片导出元数据（打印合规信息）
  */
-export function downloadImage(dataUrl: string, filename: string) {
+export function getPassportExportMeta() {
+  return {
+    widthPx: TARGET_WIDTH,
+    heightPx: TARGET_HEIGHT,
+    dpi: 300,
+    physicalWidthInch: 2,
+    physicalHeightInch: 2,
+    mm: '51x51',
+  };
+}
+
+// CRC32 查表法（PNG chunk 校验用）
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) {
+      c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    }
+    table[i] = c;
+  }
+  return table;
+})();
+
+function crc32(data: Uint8Array): number {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < data.length; i++) {
+    crc = CRC32_TABLE[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+/**
+ * 向 PNG 二进制数据中注入 pHYs chunk（设置 DPI）
+ *
+ * PNG 结构：Signature(8) + IHDR(25) + [pHYs] + ... + IEND
+ * pHYs 格式：Length(4) + "pHYs"(4) + X(4) + Y(4) + Unit(1) + CRC(4)
+ */
+function injectPngDpi(pngBytes: Uint8Array, dpi: number): Uint8Array {
+  // 300 DPI = 11811 像素/米（300 * 39.3701）
+  const pixelsPerMeter = Math.round(dpi * 39.3701);
+
+  // pHYs chunk 数据部分：X(4) + Y(4) + Unit(1) = 9 字节
+  const physData = new Uint8Array(9);
+  const view = new DataView(physData.buffer);
+  view.setUint32(0, pixelsPerMeter, false); // X pixels per unit, big-endian
+  view.setUint32(4, pixelsPerMeter, false); // Y pixels per unit, big-endian
+  view.setUint8(8, 1); // Unit: 1 = meter
+
+  // 构建 chunk：Length(4) + Type(4) + Data(9) + CRC(4) = 21 字节
+  const typeBytes = new Uint8Array([0x70, 0x48, 0x59, 0x73]); // "pHYs"
+  const crcInput = new Uint8Array(4 + 9); // type + data
+  crcInput.set(typeBytes, 0);
+  crcInput.set(physData, 4);
+  const crcValue = crc32(crcInput);
+
+  const chunk = new Uint8Array(4 + 4 + 9 + 4); // 21 字节
+  const chunkView = new DataView(chunk.buffer);
+  chunkView.setUint32(0, 9, false); // data length = 9
+  chunk.set(typeBytes, 4);
+  chunk.set(physData, 8);
+  chunkView.setUint32(17, crcValue, false);
+
+  // 插入位置：PNG Signature(8) + IHDR chunk
+  // IHDR: Length(4) + "IHDR"(4) + Data(13) + CRC(4) = 25 字节
+  const insertPos = 8 + 25;
+
+  // 合并：原数据前半 + pHYs chunk + 原数据后半
+  const result = new Uint8Array(pngBytes.length + chunk.length);
+  result.set(pngBytes.subarray(0, insertPos), 0);
+  result.set(chunk, insertPos);
+  result.set(pngBytes.subarray(insertPos), insertPos + chunk.length);
+
+  return result;
+}
+
+/**
+ * 下载图片（自动注入 300 DPI 元数据，确保打印尺寸为 2x2 英寸）
+ */
+export async function downloadImage(dataUrl: string, filename: string) {
+  // 将 base64 data URL 转为 Uint8Array
+  const base64 = dataUrl.split(',')[1];
+  const binaryStr = atob(base64);
+  const pngBytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    pngBytes[i] = binaryStr.charCodeAt(i);
+  }
+
+  // 注入 300 DPI 元数据
+  const pngWithDpi = injectPngDpi(pngBytes, 300);
+
+  // 创建 Blob 并下载（使用 Array.from 避免 TypeScript 类型问题）
+  const blob = new Blob([new Uint8Array(pngWithDpi)], { type: 'image/png' });
+  const url = URL.createObjectURL(blob);
+
   const link = document.createElement('a');
-  link.href = dataUrl;
+  link.href = url;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+
+  // 延迟释放 URL（确保下载开始后再释放）
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /**

@@ -4,9 +4,11 @@
  * 使用 @imgly/background-removal 在浏览器端本地处理
  * 完全免费，无需 API Key
  * 优化边缘处理，使扣图效果更自然
+ *
+ * 使用动态导入减小初始包体积
  */
 
-import { removeBackground } from '@imgly/background-removal';
+import type { RemoveBackgroundOptions } from '@imgly/background-removal';
 
 /**
  * 移除图片背景
@@ -15,6 +17,9 @@ import { removeBackground } from '@imgly/background-removal';
  */
 export async function removeImageBackground(imageData: string): Promise<string> {
   console.log('Starting browser-based background removal...');
+
+  // 动态导入，减小初始包体积
+  const { removeBackground } = await import('@imgly/background-removal');
 
   // 将 base64 转换为 Blob
   const response = await fetch(imageData);
@@ -25,7 +30,7 @@ export async function removeImageBackground(imageData: string): Promise<string> 
     output: {
       format: 'image/png',
     },
-    progress: (key, current, total) => {
+    progress: (key: string, current: number, total: number) => {
       console.log(`Progress: ${key} - ${Math.round((current / total) * 100)}%`);
     },
   });

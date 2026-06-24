@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
-    "@imgly/background-removal-node": "^1.4.5",
     "@mediapipe/tasks-vision": "^0.10.35",
     "@upstash/redis": "^1.38.0",
     "@vercel/blob": "^2.4.1",

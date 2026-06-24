@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   turbopack: {},
   webpack: (config, { isServer }) => {
     // 排除 sharp 二进制模块，避免 webpack 解析失败
